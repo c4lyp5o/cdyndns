@@ -1,0 +1,29 @@
+{
+  "name": "cdyndns",
+  "version": "1.0.0",
+  "description": "A service for managing dynamic dns records",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "dev": "nodemon server.js",
+    "start": "node server.js"
+  },
+  "keywords": [
+    "dyndns",
+    "service",
+    "nodejs",
+    "prisma"
+  ],
+  "author": "c4lyp5o",
+  "license": "MIT",
+  "devDependencies": {
+    "nodemon": "^3.0.3",
+    "prisma": "^5.9.1"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.9.1",
+    "axios": "^1.6.7",
+    "hyper-express": "^6.14.12",
+    "joi": "^17.12.1"
+  }
+}

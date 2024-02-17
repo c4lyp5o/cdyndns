@@ -1,0 +1,40 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model RunningServices {
+  id       Int      @id @default(autoincrement())
+  serviceName String
+  username String?
+  password String
+  status String
+  interval Int
+  domains DomainOnService[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Domain {
+  id       Int      @id @default(autoincrement())
+  domainName String
+  runningServices DomainOnService[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model DomainOnService {
+  domainId Int
+  serviceId Int
+  domain Domain @relation(fields: [domainId], references: [id])
+  service RunningServices @relation(fields: [serviceId], references: [id])
+
+  @@id([domainId, serviceId])
+}
