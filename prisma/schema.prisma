@@ -38,3 +38,8 @@ model DomainOnService {
 
   @@id([domainId, serviceId])
 }
+
+model Service {
+  id    Int    @id @default(autoincrement())
+  name  String
+}

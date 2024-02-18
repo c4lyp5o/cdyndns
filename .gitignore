@@ -9,3 +9,6 @@ database/dev.db
 
 # Ignore migrations
 prisma/migrations
+
+# Ignore logs
+logs/*

@@ -1,5 +1,4 @@
 import axios from 'axios';
-import prisma from '../database/prismaClient.js';
 import logger from '../utils/logger.js';
 
 // Array of IP checking service URLs

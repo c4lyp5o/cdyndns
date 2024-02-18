@@ -5,6 +5,7 @@ import {
   updateServiceSettings,
   deleteDomainFromService,
   deleteServiceAndDomains,
+  killItWithFire,
 } from '../controllers/settingsMx.js';
 
 const router = new Router();
@@ -14,5 +15,6 @@ router.route('/').get(readServiceSettings);
 router.route('/').put(updateServiceSettings);
 router.route('/:serviceId/:domainId').delete(deleteDomainFromService);
 router.route('/:serviceId').delete(deleteServiceAndDomains);
+router.route('/killitwithfire').delete(killItWithFire);
 
 export default router;

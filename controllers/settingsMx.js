@@ -2,10 +2,12 @@ import Joi from 'joi';
 
 import prisma from '../database/prismaClient.js';
 import logger from '../utils/logger.js';
+import { stopAllJobs, stopOneJob, startAllJobs } from './schedulerMx.js';
 
 const createSchema = Joi.object({
-  serviceName: Joi.string().required(),
-  password: Joi.string().required(),
+  serviceName: Joi.string().min(5).required(),
+  username: Joi.string().allow(null, ''),
+  password: Joi.string().min(5).required(),
   interval: Joi.number().required(),
   domains: Joi.array().items(Joi.string()).min(1).required(),
 });
@@ -25,6 +27,18 @@ async function createServiceSettings(req, res) {
   const { serviceName, username, password, interval, domains } = data;
 
   try {
+    const serviceExists = await prisma.runningServices.findMany({
+      where: {
+        serviceName,
+      },
+    });
+
+    if (serviceExists.length > 0) {
+      return res
+        .status(400)
+        .json({ message: `Service ${serviceName} already exists` });
+    }
+
     const newService = await prisma.runningServices.create({
       data: {
         serviceName,
@@ -50,6 +64,12 @@ async function createServiceSettings(req, res) {
         },
       },
     });
+
+    logger.info(`Stopping all jobs`);
+    await stopAllJobs();
+
+    logger.info(`Starting all jobs`);
+    await startAllJobs();
 
     res.json(newService);
   } catch (error) {
@@ -102,7 +122,6 @@ async function updateServiceSettings(req, res) {
       });
     }
 
-    // Update the RunningServices record
     const updatedService = await prisma.runningServices.update({
       where: { id: Number(serviceId) },
       data: {
@@ -189,6 +208,8 @@ async function deleteServiceAndDomains(req, res) {
       },
     });
 
+    await stopOneJob(serviceId);
+
     res.json({
       message: 'Service and associated domains deleted successfully',
     });
@@ -200,10 +221,28 @@ async function deleteServiceAndDomains(req, res) {
   }
 }
 
+async function killItWithFire(req, res) {
+  try {
+    await prisma.domainOnService.deleteMany();
+    await prisma.runningServices.deleteMany();
+    await prisma.domain.deleteMany();
+
+    await stopAllJobs();
+
+    res.json({ message: 'All services and domains deleted successfully' });
+  } catch (error) {
+    logger.error(`Failed to delete all services and domains: ${error.message}`);
+    res.status(500).json({
+      error: `Failed to delete all services and domains: ${error.message}`,
+    });
+  }
+}
+
 export {
   createServiceSettings,
   readServiceSettings,
   updateServiceSettings,
   deleteDomainFromService,
   deleteServiceAndDomains,
+  killItWithFire,
 };
