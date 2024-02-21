@@ -50,24 +50,44 @@ async function getPublicIp(req, res) {
   }
 }
 
-async function getPublicIpOnInterval(minutes) {
-  const intervalId = setInterval(async () => {
-    try {
-      const newIp = await getPublicIp();
-      if (newIp !== ip) {
-        logger.info(`Public IP changed to ${newIp}`);
-        ip = newIp;
-      }
-    } catch (error) {
-      console.error(`Failed to get public IP: ${error.message}`);
-    }
-  }, minutes * 60 * 1000);
+async function getPublicIpInternalService() {
+  logger.info('Getting public IP');
+  logger.info(`List of IP checking services: ${ipCheckServices.join(', ')}`);
 
-  return intervalId;
+  const requests = ipCheckServices.map((service) =>
+    axios
+      .get(service, { timeout: 5000 })
+      .then((response) => {
+        logger.info(
+          `Got IP from ${service}: ${JSON.stringify(
+            response.data.ip || response.data.ip_addr
+          )}`
+        );
+        if (
+          (response.data && response.data.ip) ||
+          (response.data && response.data.ip_addr)
+        ) {
+          return response.data.ip || response.data.ip_addr;
+        } else {
+          throw new Error(`No IP in response from ${service}`);
+        }
+      })
+      .catch((error) => {
+        logger.error(`Failed to get IP from ${service}: ${error.message}`);
+        return null;
+      })
+  );
+
+  const results = await Promise.allSettled(requests);
+  const successfulResults = results.filter(
+    (result) => result.status === 'fulfilled'
+  );
+
+  if (successfulResults.length > 0) {
+    return { ip: successfulResults[0].value };
+  } else {
+    throw new Error('Failed to get public IP');
+  }
 }
 
-function stopGetPublicIpOnInterval() {
-  clearTimeout();
-}
-
-export { getPublicIp, getPublicIpOnInterval, stopGetPublicIpOnInterval };
+export { getPublicIp, getPublicIpInternalService };

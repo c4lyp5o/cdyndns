@@ -5,11 +5,31 @@ import logger from '../utils/logger.js';
 import { stopAllJobs, stopOneJob, startAllJobs } from './schedulerMx.js';
 
 const createSchema = Joi.object({
-  serviceName: Joi.string().min(5).required(),
-  username: Joi.string().allow(null, ''),
-  password: Joi.string().min(5).required(),
-  interval: Joi.number().required(),
-  domains: Joi.array().items(Joi.string()).min(1).required(),
+  serviceName: Joi.string().required(),
+  username: Joi.string().min(5).when('serviceName', {
+    is: 'namecheap',
+    then: Joi.optional(),
+    otherwise: Joi.required(),
+  }),
+  password: Joi.string().min(5).when('serviceName', {
+    is: 'namecheap',
+    then: Joi.optional(),
+    otherwise: Joi.required(),
+  }),
+  status: Joi.string().optional(),
+  interval: Joi.number().min(3000).optional(),
+  domains: Joi.array().items(Joi.object()).min(1).required(),
+});
+
+const namecheapDomainSchema = Joi.object({
+  hostName: Joi.string().required(),
+  domainName: Joi.string().required(),
+  password: Joi.string().required(),
+});
+
+const otherDomainSchema = Joi.object({
+  hostName: Joi.string().required(),
+  domainName: Joi.string().required(),
 });
 
 async function createServiceSettings(req, res) {
@@ -19,12 +39,13 @@ async function createServiceSettings(req, res) {
   // if (error) {
   //   return res.status(400).json({ message: 'Not enough fields' });
   // }
+
   const { error } = createSchema.validate(data);
   if (error) {
     return res.status(400).json({ message: error.details[0].message });
   }
 
-  const { serviceName, username, password, interval, domains } = data;
+  const { serviceName, username, password, status, interval, domains } = data;
 
   try {
     const serviceExists = await prisma.runningServices.findMany({
@@ -39,18 +60,41 @@ async function createServiceSettings(req, res) {
         .json({ message: `Service ${serviceName} already exists` });
     }
 
+    if (serviceName === 'namecheap') {
+      for (const domain of domains) {
+        const { error } = namecheapDomainSchema.validate(domain);
+        if (error) {
+          return res.status(400).json({
+            message:
+              'Host Name / Domain Name / Password in domains is required',
+          });
+        }
+      }
+    } else {
+      for (const domain of domains) {
+        const { error } = otherDomainSchema.validate(domain);
+        if (error) {
+          return res.status(400).json({
+            message: 'Host Name / Domain Name in domains is required',
+          });
+        }
+      }
+    }
+
     const newService = await prisma.runningServices.create({
       data: {
         serviceName,
         username: username || null,
         password,
-        status: 'active',
+        status,
         interval: Number(interval),
         domains: {
           create: domains.map((domain) => ({
             domain: {
               create: {
-                domainName: domain,
+                hostName: domain.hostName,
+                domainName: domain.domainName,
+                password: domain.password,
               },
             },
           })),
@@ -72,11 +116,10 @@ async function createServiceSettings(req, res) {
     await startAllJobs();
 
     res.json(newService);
-  } catch (error) {
-    logger.error(`Failed to create service: ${error.message}`);
-    res
-      .status(500)
-      .json({ error: `Failed to create service: ${error.message}` });
+  } catch ({ message }) {
+    const errorMessage = `Failed to create service: ${message}`;
+    logger.error(errorMessage);
+    res.status(500).json({ message: errorMessage });
   }
 }
 
@@ -97,11 +140,10 @@ async function readServiceSettings(req, res) {
     } else {
       res.json(services);
     }
-  } catch (error) {
-    logger.error(`Failed to read services: ${error.message}`);
-    res
-      .status(500)
-      .json({ error: `Failed to read services: ${error.message}` });
+  } catch ({ message }) {
+    const errorMessage = `Failed to read services: ${message}`;
+    logger.error(errorMessage);
+    res.status(500).json({ message: errorMessage });
   }
 }
 
@@ -138,11 +180,10 @@ async function updateServiceSettings(req, res) {
     });
 
     res.json(updatedService);
-  } catch (error) {
-    logger.error(`Failed to update service: ${error.message}`);
-    res
-      .status(500)
-      .json({ error: `Failed to update service: ${error.message}` });
+  } catch ({ message }) {
+    const errorMessage = `Failed to update service: ${message}`;
+    logger.error(errorMessage);
+    res.status(500).json({ message: errorMessage });
   }
 }
 
@@ -168,12 +209,11 @@ async function deleteDomainFromService(req, res) {
     res.json({
       message: 'Domain deleted from service and domain table successfully',
     });
-  } catch (error) {
-    logger.error(
-      `Failed to delete domain from service and domain table: ${error.message}`
-    );
+  } catch ({ message }) {
+    const errorMessage = `Failed to delete domain from service and domain table: ${message}`;
+    logger.error(errorMessage);
     res.status(500).json({
-      error: `Failed to delete domain from service and domain table: ${error.message}`,
+      message: errorMessage,
     });
   }
 }
@@ -213,10 +253,11 @@ async function deleteServiceAndDomains(req, res) {
     res.json({
       message: 'Service and associated domains deleted successfully',
     });
-  } catch (error) {
-    logger.error(`Failed to delete service and domains: ${error.message}`);
+  } catch ({ message }) {
+    const errorMessage = `Failed to delete service and domains: ${message}`;
+    logger.error(errorMessage);
     res.status(500).json({
-      error: `Failed to delete service and domains: ${error.message}`,
+      message: errorMessage,
     });
   }
 }
@@ -230,10 +271,11 @@ async function killItWithFire(req, res) {
     await stopAllJobs();
 
     res.json({ message: 'All services and domains deleted successfully' });
-  } catch (error) {
-    logger.error(`Failed to delete all services and domains: ${error.message}`);
+  } catch ({ message }) {
+    const errorMessage = `Failed to delete all services and domains: ${message}`;
+    logger.error(errorMessage);
     res.status(500).json({
-      error: `Failed to delete all services and domains: ${error.message}`,
+      message: errorMessage,
     });
   }
 }

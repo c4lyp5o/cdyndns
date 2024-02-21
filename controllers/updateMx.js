@@ -1,7 +1,7 @@
 import axios from 'axios';
-import logger from './logger.js';
+import logger from '../utils/logger.js';
 
-async function updateNamecheapDns(host, domain, password, ip) {
+async function updateNamecheapDns({ host, domain, password, ip }) {
   const url = new URL('https://dynamicdns.park-your-domain.com/update');
   url.searchParams.append('host', host);
   url.searchParams.append('domain', domain);
@@ -10,23 +10,24 @@ async function updateNamecheapDns(host, domain, password, ip) {
 
   try {
     const response = await axios.get(url.toString());
-    if (response.data && response.data.ErrCount === '0') {
+    if (response.status === 200) {
       logger.info(
         `Successfully updated Namecheap DNS for ${host}.${domain} to ${ip}`
       );
+      return { status: response.status, statusText: response.statusText };
     } else {
       throw new Error(
-        `Failed to update Namecheap DNS: ${response.data.errors.join(', ')}`
+        `Failed to update Namecheap DNS: ${response.status} ${response.statusText}`
       );
     }
-  } catch (error) {
-    logger.error(
-      `Failed to update Namecheap DNS for ${host}.${domain} to ${ip}: ${error.message}`
-    );
+  } catch ({ message }) {
+    const errorMessage = `Failed to update Namecheap DNS for ${host}.${domain} to ${ip}: ${message}`;
+    logger.error(errorMessage);
+    throw new Error(errorMessage);
   }
 }
 
-async function updateDynDns(host, domain, username, password, ip) {
+async function updateDynDns({ host, domain, username, password, ip }) {
   const url = new URL(
     `https://${username}:${password}@members.dyndns.org/v3/update`
   );
@@ -40,14 +41,14 @@ async function updateDynDns(host, domain, username, password, ip) {
     } else {
       throw new Error(`Failed to update DynDNS: ${response.data.status}`);
     }
-  } catch (error) {
-    logger.error(
-      `Failed to update DynDNS for ${host}.${domain} to ${ip}: ${error.message}`
-    );
+  } catch ({ message }) {
+    const errorMessage = `Failed to update DynDNS for ${host}.${domain} to ${ip}: ${message}`;
+    logger.error(errorMessage);
+    throw new Error(errorMessage);
   }
 }
 
-async function updateNoIpDns(host, domain, username, password, ip) {
+async function updateNoIpDns({ host, domain, username, password, ip }) {
   const url = new URL(
     `https://${username}:${password}@dynupdate.no-ip.com/nic/update`
   );
@@ -63,11 +64,17 @@ async function updateNoIpDns(host, domain, username, password, ip) {
     } else {
       throw new Error(`Failed to update No-IP DNS: ${response.data.status}`);
     }
-  } catch (error) {
-    logger.error(
-      `Failed to update No-IP DNS for ${host}.${domain} to ${ip}: ${error.message}`
-    );
+  } catch ({ message }) {
+    const errorMessage = `Failed to update No-IP DNS for ${host}.${domain} to ${ip}: ${message}`;
+    logger.error(errorMessage);
+    throw new Error(errorMessage);
   }
 }
 
-export { updateNamecheapDns, updateDynDns, updateNoIpDns };
+const ddnsProviders = new Map([
+  ['namecheap', updateNamecheapDns],
+  ['dyndns', updateDynDns],
+  ['no-ip', updateNoIpDns],
+]);
+
+export { ddnsProviders };

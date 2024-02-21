@@ -5,8 +5,9 @@
   "main": "server.js",
   "type": "module",
   "scripts": {
-    "dev": "nodemon server.js",
-    "start": "node server.js"
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "server": "nodemon server.js",
+    "client": "cd client && npm run dev"
   },
   "keywords": [
     "dyndns",
@@ -17,6 +18,7 @@
   "author": "c4lyp5o",
   "license": "MIT",
   "devDependencies": {
+    "concurrently": "^8.2.2",
     "nodemon": "^3.0.3",
     "prisma": "^5.9.1"
   },

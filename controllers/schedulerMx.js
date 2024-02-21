@@ -30,20 +30,35 @@ async function startOneJob(service) {
       existingBree.stop();
     }
 
+    // const bree = new Bree({
+    //   jobs: [
+    //     {
+    //       name: 'readSettings',
+    //       worker: { workerData: { serviceData: service } },
+    //       interval: `${service.interval}s`,
+    //       path: path.join(process.cwd(), 'jobs', 'readSettings.js'),
+    //     },
+    //   ],
+    // });
+    // bree.start();
+
     const bree = new Bree({
       jobs: [
         {
-          name: 'readSettings',
+          name: 'updateDns',
           worker: { workerData: { serviceData: service } },
           interval: `${service.interval}s`,
-          path: path.join(process.cwd(), 'jobs', 'readSettings.js'),
+          path: path.join(process.cwd(), 'jobs', 'updateDns.js'),
         },
       ],
     });
     bree.start();
 
     breeInstances.set(service.serviceName, bree);
-    logger.info(`Started jobs for service ${service.serviceName}`);
+
+    const message = `Started jobs for service ${service.serviceName}`;
+    logger.info(message);
+    return { message };
   } catch ({ message }) {
     const errorMessage = `Failed to start jobs for service ${service.serviceName}: ${message}`;
     logger.error(errorMessage);
@@ -66,20 +81,22 @@ async function startAllJobs() {
     });
 
     if (services.length === 0) {
-      logger.warn('No services found');
+      logger.warn('No services found. Not starting any jobs.');
       return;
     }
 
     for (const service of services) {
-      logger.info(`Starting jobs for service ${service.serviceName}`);
+      logger.info(`Found service ${service.serviceName}. Starting...`);
       startOneJob(service);
     }
 
-    logger.info('All jobs started');
-    return { message: 'All jobs started' };
+    const message = 'All jobs started';
+    logger.info(message);
+    return { message };
   } catch ({ message }) {
-    logger.error(`Failed to start jobs: ${message}`);
-    throw new Error(`Failed to start jobs: ${message}`);
+    const errorMessage = `Failed to start jobs: ${message}`;
+    logger.error(errorMessage);
+    throw new Error(errorMessage);
   }
 }
 
@@ -100,6 +117,7 @@ async function stopOneJob(serviceName) {
     }
   } catch ({ message }) {
     const errorMessage = `Failed to stop jobs for service ${serviceName}: ${message}`;
+    logger.error(errorMessage);
     throw new Error(errorMessage);
   }
 }
@@ -118,6 +136,7 @@ async function stopAllJobs() {
     // }
 
     breeInstances.clear();
+
     const message = 'All jobs stopped';
     logger.info(message);
     return { message };

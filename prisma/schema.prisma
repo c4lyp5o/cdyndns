@@ -14,9 +14,9 @@ model RunningServices {
   id       Int      @id @default(autoincrement())
   serviceName String
   username String?
-  password String
-  status String
-  interval Int
+  password String?
+  status String @default("active")
+  interval Int @default(3000)
   domains DomainOnService[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -24,7 +24,9 @@ model RunningServices {
 
 model Domain {
   id       Int      @id @default(autoincrement())
+  hostName String
   domainName String
+  password String?
   runningServices DomainOnService[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
